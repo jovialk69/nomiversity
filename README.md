@@ -206,18 +206,41 @@ Bookmark this URL — it's your gallery from any browser, on any device.
 
 ### Part 5 — Updating with new images
 
-Each time you add new images and export a fresh `prompts.csv` from the logger:
+Follow these steps every time you want to add new images to your live gallery.
 
-1. Copy the new images into the `images/` folder inside your `nomi-archive` folder on your Desktop
-2. Replace `prompts.csv` with your latest export from `logger.html`
-3. Open Terminal and run:
-   ```bash
-   cd ~/Desktop/nomi-archive
-   git add .
-   git commit -m "Add new images"
-   git push
-   ```
-4. Your live gallery updates automatically within ~30 seconds
+**Step 1 — Export a fresh prompts.csv from the logger**
+
+1. Open `logger.html` in your browser
+2. Make sure all your new entries are logged
+3. Click **↓ Export prompts.csv** in the left sidebar
+4. When the download dialog appears, navigate to your `nomi-archive` folder on your Desktop and save it there — **replacing the existing `prompts.csv`**
+
+> This is the most important step. The gallery reads directly from `prompts.csv` in the repo — if you skip this, your new images won't appear.
+
+**Step 2 — Copy your new images into the repo folder**
+
+1. Open Finder and navigate to your `nomi-archive` folder on your Desktop
+2. Open the `images/` subfolder inside it
+3. Copy (or move) your newly downloaded and renamed images into this `images/` folder
+
+**Step 3 — Push everything to GitHub**
+
+Open Terminal and run these commands:
+
+```bash
+cd ~/Desktop/nomi-archive
+git add .
+git commit -m "Add new images"
+git push
+```
+
+**Step 4 — Check your live gallery**
+
+Wait 30–60 seconds, then open your gallery URL:
+```
+https://YOUR_USERNAME.github.io/nomi-archive/
+```
+Your new images should appear automatically. If they don't, do a hard refresh in your browser: **Cmd + Shift + R**.
 
 ---
 

@@ -339,6 +339,8 @@
   .mini-btn:hover { background: var(--surface2); color: var(--text); }
   .mini-btn.del:hover { border-color: rgba(220,80,80,0.4); color: #e05555; background: rgba(220,80,80,0.08); }
   .mini-btn.copied { color: var(--success); border-color: var(--success-border); background: var(--success-dim); }
+  .mini-btn.nsfw-on { color: rgba(220,80,80,0.85); border-color: rgba(220,80,80,0.4); background: rgba(220,80,80,0.08); }
+  .mini-btn.nsfw-on:hover { background: rgba(220,80,80,0.15); }
 
   .empty-log { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--text3); font-size: 13px; gap: 6px; padding: 2rem; text-align: center; }
   .empty-log svg { width: 32px; height: 32px; margin-bottom: 4px; }
@@ -712,6 +714,14 @@
     save(); renderEntries(); updateTotalCount(); renderSidebar();
   }
 
+  function toggleEntryNsfw(id) {
+    const entry = entries.find(e => e.id === id);
+    if (!entry) return;
+    entry.nsfw = !entry.nsfw;
+    save(); renderEntries();
+    showToast(entry.nsfw ? 'Marked as NSFW' : 'NSFW removed', 'success');
+  }
+
   function copyPrompt(id, btn) {
     const entry = entries.find(e => e.id === id);
     if (!entry) return;
@@ -756,6 +766,7 @@
         </div>
         <div class="entry-actions">
           <button class="mini-btn" onclick="copyPrompt(${e.id},this)">Copy</button>
+          <button class="mini-btn ${e.nsfw ? 'nsfw-on' : ''}" onclick="toggleEntryNsfw(${e.id})" title="${e.nsfw ? 'Remove NSFW flag' : 'Mark as NSFW'}">${e.nsfw ? 'NSFW ✓' : 'NSFW'}</button>
           <button class="mini-btn del" onclick="deleteEntry(${e.id})">Delete</button>
         </div>
       </div>`;
