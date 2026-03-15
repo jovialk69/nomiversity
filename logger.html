@@ -79,6 +79,25 @@
 
   .nomi-list { display: flex; flex-direction: column; gap: 4px; }
 
+  .nomi-chip-wrap {
+    display: flex; align-items: center; gap: 4px;
+  }
+
+  .nomi-chip-wrap .nomi-chip { flex: 1; }
+
+  .nomi-delete-btn {
+    flex-shrink: 0;
+    width: 24px; height: 24px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; line-height: 1;
+    background: transparent; border: 0.5px solid transparent;
+    border-radius: var(--radius-sm); color: var(--text3);
+    cursor: pointer; transition: all 0.15s; opacity: 0;
+  }
+
+  .nomi-chip-wrap:hover .nomi-delete-btn { opacity: 1; }
+  .nomi-delete-btn:hover { color: #e05555; border-color: rgba(220,80,80,0.35); background: rgba(220,80,80,0.08); }
+
   .nomi-chip {
     display: flex; align-items: center; justify-content: space-between;
     padding: 8px 12px; border-radius: var(--radius-sm);
@@ -689,8 +708,12 @@
     let html = `<button class="nomi-chip ${activeNomi===null?'active':''}" onclick="setActiveNomi(null)">All Nomis <span class="count">${entries.length}</span></button>`;
     for (const n of nomis) {
       const count = entries.filter(e => e.nomi === n).length;
-      html += `<button class="nomi-chip ${activeNomi===n?'active':''}" onclick="setActiveNomi('${n.replace(/'/g,"\\'")}')">
-        ${n} <span class="count">${count}</span></button>`;
+      html += `<div class="nomi-chip-wrap">
+        <button class="nomi-chip ${activeNomi===n?'active':''}" onclick="setActiveNomi('${n.replace(/'/g,"\\'")}')">
+          ${n} <span class="count">${count}</span>
+        </button>
+        <button class="nomi-delete-btn" onclick="deleteNomi('${n.replace(/'/g,"\\'")}', event)" title="Delete ${n}">✕</button>
+      </div>`;
     }
     document.getElementById('nomiList').innerHTML = html;
     updateNomiSelect();
@@ -799,12 +822,18 @@
         const nomi = line.slice(f+1,s).trim();
         let rest = line.slice(s+1).trim();
         let prompt = rest, nsfw = false;
+
+        // Normalise triple quotes (export artefact) to single quote
+        while (rest.startsWith('""')) rest = rest.slice(1);
+
         if (rest.startsWith('"')) {
           const cq = rest.indexOf('"', 1);
           if (cq !== -1) {
             prompt = rest.slice(1, cq);
             const after = rest.slice(cq+1).trim();
             if (after.startsWith(',')) nsfw = after.slice(1).trim().toLowerCase() === 'true';
+          } else {
+            prompt = rest.slice(1); // unclosed quote — take the rest
           }
         } else {
           const lc = rest.lastIndexOf(',');
@@ -816,6 +845,7 @@
             }
           }
         }
+
         if (!nomis.includes(nomi)) nomis.push(nomi);
         if (entries.find(e => e.filename===filename)) continue;
         entries.push({id:Date.now()+i,nomi,filename,prompt,nsfw,date:new Date().toISOString(),thumb:null});
@@ -825,6 +855,20 @@
       showToast(`Imported ${added} new entr${added!==1?'ies':'y'}`, 'success');
     };
     reader.readAsText(file); event.target.value='';
+  }
+
+  function deleteNomi(name, e) {
+    e.stopPropagation();
+    const count = entries.filter(en => en.nomi === name).length;
+    const msg = count > 0
+      ? `Delete "${name}"? This will also remove their ${count} entr${count!==1?'ies':'y'} from the log.`
+      : `Delete "${name}"?`;
+    if (!confirm(msg)) return;
+    nomis = nomis.filter(n => n !== name);
+    entries = entries.filter(en => en.nomi !== name);
+    if (activeNomi === name) activeNomi = null;
+    save(); renderSidebar(); renderEntries(); updateTotalCount();
+    showToast(`Deleted "${name}"`, 'success');
   }
 
   load(); renderSidebar(); renderEntries(); updateTotalCount();
