@@ -228,6 +228,44 @@
     -webkit-backdrop-filter: blur(6px); letter-spacing: 0.02em;
   }
 
+  /* ── NSFW cover ── */
+  .nsfw-cover {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 8px; cursor: pointer; z-index: 2;
+    background: rgba(0,0,0,0.15);
+  }
+
+  .nsfw-cover.hidden { display: none; }
+
+  .nsfw-blur { filter: blur(18px); transform: scale(1.08); }
+
+  .card:hover .img-area .nsfw-blur { transform: scale(1.08); }
+
+  .nsfw-label {
+    background: rgba(0,0,0,0.68);
+    color: #fff; font-size: 11px; font-weight: 500;
+    padding: 4px 12px; border-radius: 999px;
+    letter-spacing: 0.06em; text-transform: uppercase;
+    backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
+    pointer-events: none;
+  }
+
+  .nsfw-hint {
+    font-size: 11px; color: rgba(255,255,255,0.65);
+    pointer-events: none;
+  }
+
+  .nsfw-badge {
+    position: absolute; top: 9px; right: 9px;
+    background: rgba(180,40,40,0.82); color: #fff;
+    font-size: 10px; font-weight: 500; padding: 2px 8px;
+    border-radius: 999px; letter-spacing: 0.06em;
+    text-transform: uppercase; z-index: 3;
+    pointer-events: none;
+  }
+
   .card-body { padding: 12px 14px 14px; }
 
   .prompt-text {
@@ -495,9 +533,28 @@
       if (first === -1 || second === -1) continue;
       const filename = line.slice(0, first).trim();
       const nomi = line.slice(first + 1, second).trim();
-      let prompt = line.slice(second + 1).trim();
-      if (prompt.startsWith('"') && prompt.endsWith('"')) prompt = prompt.slice(1, -1);
-      entries.push({ filename, nomi, prompt });
+      let rest = line.slice(second + 1).trim();
+
+      // Extract optional 4th column (nsfw) — must come after closing quote or last field
+      let prompt = rest, nsfw = false;
+      if (rest.startsWith('"')) {
+        const closeQuote = rest.indexOf('"', 1);
+        if (closeQuote !== -1) {
+          prompt = rest.slice(1, closeQuote);
+          const after = rest.slice(closeQuote + 1).trim();
+          if (after.startsWith(',')) nsfw = after.slice(1).trim().toLowerCase() === 'true';
+        }
+      } else {
+        const lastComma = rest.lastIndexOf(',');
+        if (lastComma !== -1) {
+          const maybeNsfw = rest.slice(lastComma + 1).trim().toLowerCase();
+          if (maybeNsfw === 'true' || maybeNsfw === 'false') {
+            prompt = rest.slice(0, lastComma).trim();
+            nsfw = maybeNsfw === 'true';
+          }
+        }
+      }
+      entries.push({ filename, nomi, prompt, nsfw });
     }
     return entries;
   }
@@ -563,11 +620,20 @@
 
     gallery.innerHTML = filtered.map((e, i) => {
       const src = `images/${e.filename}`;
+      const nsfwCover = e.nsfw ? `
+        <div class="nsfw-cover" id="nsfw-${i}" onclick="revealNsfw(${i}, event)">
+          <span class="nsfw-label">NSFW</span>
+          <span class="nsfw-hint">Click to reveal</span>
+        </div>
+        <span class="nsfw-badge">NSFW</span>` : '';
       return `<div class="card">
-        <div class="img-area" onclick="openLightbox(${i})">
+        <div class="img-area" onclick="onImgAreaClick(${i}, event)">
           <img src="${src}" alt="${e.nomi}" loading="lazy"
+            id="img-${i}"
+            class="${e.nsfw ? 'nsfw-blur' : ''}"
             onerror="this.parentElement.innerHTML='<div class=\\'img-placeholder\\'><svg viewBox=\\'0 0 24 24\\' fill=\\'none\\' stroke=\\'currentColor\\' stroke-width=\\'1.2\\' stroke-linecap=\\'round\\'><rect x=\\'3\\' y=\\'3\\' width=\\'18\\' height=\\'18\\' rx=\\'2\\'/><circle cx=\\'8.5\\' cy=\\'8.5\\' r=\\'1.5\\'/><polyline points=\\'21 15 16 10 5 21\\'/></svg><span>${e.filename}</span></div>'">
           <span class="nomi-badge">${e.nomi}</span>
+          ${nsfwCover}
         </div>
         <div class="card-body">
           <p class="prompt-text">${e.prompt}</p>
@@ -596,6 +662,26 @@
         btn.innerHTML = `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><rect x="5" y="5" width="9" height="9" rx="1.5"/><path d="M3 11H2a1 1 0 01-1-1V2a1 1 0 011-1h8a1 1 0 011 1v1"/></svg> Copy prompt`;
       }, 2000);
     });
+  }
+
+  // ── NSFW reveal ───────────────────────────────────────
+  // Track which cards have been revealed this session
+  const revealedSet = new Set();
+
+  function revealNsfw(i, e) {
+    e.stopPropagation();
+    revealedSet.add(i);
+    const cover = document.getElementById(`nsfw-${i}`);
+    const img = document.getElementById(`img-${i}`);
+    if (cover) cover.classList.add('hidden');
+    if (img) img.classList.remove('nsfw-blur');
+  }
+
+  function onImgAreaClick(i, e) {
+    // If NSFW cover is still showing, let it handle the click
+    const cover = document.getElementById(`nsfw-${i}`);
+    if (cover && !cover.classList.contains('hidden')) return;
+    openLightbox(i);
   }
 
   // ── Lightbox ──────────────────────────────────────────

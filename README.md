@@ -118,42 +118,106 @@ For API feedback, reach the Nomi.ai team at support@nomi.ai or via their Discord
 
 ## Hosting on GitHub Pages (Recommended)
 
-Hosting on GitHub Pages unlocks the full version of `gallery.html` — it auto-loads `prompts.csv` and all images automatically, with no file picking required.
+Hosting on GitHub Pages unlocks the full version of `gallery.html` — it auto-loads `prompts.csv` and all images automatically, with no file picking required. Your gallery becomes a live website accessible from any browser or device.
 
-### One-time setup
+---
+
+### Part 1 — Create your GitHub repository
 
 1. Go to [github.com](https://github.com) and sign in
-2. Click **+** → **New repository** → name it `nomi-archive` → set to **Public** → click **Create repository**
-3. On your Mac, open Terminal and run:
-   ```
-   cd ~/Desktop
-   git clone https://github.com/YOUR_USERNAME/nomi-archive.git
-   ```
-4. Copy the contents of this zip into that cloned folder
-5. Push to GitHub:
-   ```
-   cd nomi-archive
-   git add .
-   git commit -m "Initial archive"
-   git push
-   ```
-6. On GitHub, go to your repo → **Settings** → **Pages** → under Source select **main branch** → click **Save**
-7. Your gallery will be live at `https://YOUR_USERNAME.github.io/nomi-archive/`
+2. Click the **+** icon in the top-right corner → **New repository**
+3. Name it `nomi-archive`
+4. Set visibility to **Public**
+5. Leave everything else as default and click **Create repository**
 
-### Updating with new images
+---
+
+### Part 2 — Generate a Personal Access Token
+
+GitHub does not accept your account password for Git operations. You need a Personal Access Token (PAT) instead. You only need to do this once.
+
+1. Go to [github.com/settings/tokens](https://github.com/settings/tokens)
+2. Click **Generate new token** → **Generate new token (classic)**
+3. In the **Note** field, type something like `nomi-archive-mac`
+4. Set **Expiration** to **No expiration** (or choose a date if you prefer)
+5. Under **Select scopes**, tick the **repo** checkbox (this is all that's needed)
+6. Scroll down and click **Generate token**
+7. **Copy the token immediately** — it looks like `ghp_xxxxxxxxxxxxxxxxxxxx`
+   > GitHub only shows this token once. If you lose it, you'll need to generate a new one.
+
+---
+
+### Part 3 — Push your files to GitHub
+
+Open Terminal on your Mac and run these commands one at a time, replacing `YOUR_USERNAME` with your GitHub username:
+
+```bash
+# Step 1 — Store your credentials in macOS Keychain (one-time only)
+git config --global credential.helper osxkeychain
+
+# Step 2 — Go to your Desktop (or wherever you want to keep the folder)
+cd ~/Desktop
+
+# Step 3 — Clone the empty repository
+git clone https://github.com/YOUR_USERNAME/nomi-archive.git
+```
+
+When prompted:
+- **Username**: your GitHub username
+- **Password**: paste your Personal Access Token (not your GitHub password)
+
+macOS Keychain saves this — you won't be asked again.
+
+```bash
+# Step 4 — Move into the cloned folder
+cd nomi-archive
+```
+
+Now copy all the files from this toolkit (gallery.html, logger.html, prompts.csv, and the images/ folder) into the `nomi-archive` folder on your Desktop.
+
+```bash
+# Step 5 — Add, commit, and push all files
+git add .
+git commit -m "Initial archive"
+git push
+```
+
+---
+
+### Part 4 — Enable GitHub Pages
+
+1. Go to `https://github.com/YOUR_USERNAME/nomi-archive`
+2. Click **Settings** (the tab at the top of the repo)
+3. In the left sidebar, scroll down and click **Pages**
+4. Under **Source**, select **Deploy from a branch**
+5. Under **Branch**, select **main** and keep the folder as **/ (root)**
+6. Click **Save**
+7. Wait 30–60 seconds, then refresh the page
+8. A green banner will appear saying **"Your site is published at…"**
+
+Your gallery is now live at:
+```
+https://YOUR_USERNAME.github.io/nomi-archive/
+```
+
+Bookmark this URL — it's your gallery from any browser, on any device.
+
+---
+
+### Part 5 — Updating with new images
 
 Each time you add new images and export a fresh `prompts.csv` from the logger:
 
-1. Copy the new images into the `images/` folder in your cloned repo
-2. Replace `prompts.csv` with your latest export
-3. Run in Terminal:
-   ```
+1. Copy the new images into the `images/` folder inside your `nomi-archive` folder on your Desktop
+2. Replace `prompts.csv` with your latest export from `logger.html`
+3. Open Terminal and run:
+   ```bash
    cd ~/Desktop/nomi-archive
    git add .
    git commit -m "Add new images"
    git push
    ```
-4. GitHub Pages updates automatically within ~30 seconds
+4. Your live gallery updates automatically within ~30 seconds
 
 ---
 

@@ -350,6 +350,69 @@
   ::-webkit-scrollbar { width: 4px; }
   ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb { background: var(--surface3); border-radius: 4px; }
+
+  /* ── NSFW toggle ── */
+  .nsfw-toggle-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 14px;
+    border: 0.5px solid var(--border2);
+    border-radius: var(--radius-sm);
+    background: var(--surface2);
+    cursor: pointer;
+    transition: border-color 0.15s;
+    user-select: none;
+  }
+
+  .nsfw-toggle-row:hover { border-color: var(--border3); }
+  .nsfw-toggle-row.active { border-color: rgba(220,80,80,0.45); background: rgba(220,80,80,0.07); }
+
+  .nsfw-toggle-label {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 13px; color: var(--text2);
+  }
+
+  .nsfw-toggle-row.active .nsfw-toggle-label { color: #e07070; }
+
+  .nsfw-toggle-label svg { width: 14px; height: 14px; flex-shrink: 0; }
+
+  .nsfw-pill {
+    font-size: 10px; font-weight: 500; letter-spacing: 0.07em;
+    text-transform: uppercase; padding: 2px 8px;
+    border-radius: 999px; border: 0.5px solid rgba(220,80,80,0.4);
+    color: rgba(220,80,80,0.8); background: rgba(220,80,80,0.08);
+    display: none;
+  }
+
+  .nsfw-toggle-row.active .nsfw-pill { display: inline-block; }
+
+  .nsfw-switch {
+    width: 32px; height: 18px; border-radius: 999px;
+    background: var(--surface3); border: 0.5px solid var(--border2);
+    position: relative; flex-shrink: 0; transition: background 0.2s, border-color 0.2s;
+  }
+
+  .nsfw-toggle-row.active .nsfw-switch {
+    background: rgba(220,80,80,0.7); border-color: rgba(220,80,80,0.5);
+  }
+
+  .nsfw-switch::after {
+    content: ''; position: absolute; top: 2px; left: 2px;
+    width: 12px; height: 12px; border-radius: 50%;
+    background: var(--text3); transition: transform 0.2s, background 0.2s;
+  }
+
+  .nsfw-toggle-row.active .nsfw-switch::after {
+    transform: translateX(14px); background: #fff;
+  }
+
+  /* NSFW badge on entry cards */
+  .entry-nsfw-badge {
+    font-size: 10px; font-weight: 500; letter-spacing: 0.06em;
+    text-transform: uppercase; padding: 2px 7px;
+    border-radius: 999px; border: 0.5px solid rgba(220,80,80,0.4);
+    color: rgba(220,80,80,0.85); background: rgba(220,80,80,0.08);
+    flex-shrink: 0;
+  }
 </style>
 </head>
 <body>
@@ -425,6 +488,19 @@
     <div class="field">
       <label>Image prompt</label>
       <textarea id="promptInput" rows="3" placeholder="Paste the image prompt from Nomi.ai here…"></textarea>
+    </div>
+
+    <div onclick="toggleNsfw()" id="nsfwToggleRow" class="nsfw-toggle-row">
+      <div class="nsfw-toggle-label">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+          <path d="M1 8s3-5 7-5 7 5 7 5-3 5-7 5-7-5-7-5z"/>
+          <circle cx="8" cy="8" r="2"/>
+          <line x1="2" y1="2" x2="14" y2="14" class="nsfw-cross" style="display:none"/>
+        </svg>
+        Mark as NSFW
+        <span class="nsfw-pill">NSFW</span>
+      </div>
+      <div class="nsfw-switch"></div>
     </div>
 
     <div class="submit-row">
@@ -559,6 +635,14 @@
     status.textContent = `Will log as: ${buildFilename(nomi, num, ext)}`;
   }
 
+  let nsfwFlag = false;
+
+  function toggleNsfw() {
+    nsfwFlag = !nsfwFlag;
+    const row = document.getElementById('nsfwToggleRow');
+    row.classList.toggle('active', nsfwFlag);
+  }
+
   function logEntry() {
     const nomi = document.getElementById('nomiSelect').value;
     const prompt = document.getElementById('promptInput').value.trim();
@@ -568,11 +652,14 @@
     const num = numInput ? parseInt(numInput) : getNextNumber(nomi);
     const ext = currentOriginalName ? getExt(currentOriginalName) : 'png';
     const filename = buildFilename(nomi, num, ext);
-    const entry = { id: Date.now(), nomi, filename, prompt, date: new Date().toISOString(), thumb: null };
+    const entry = { id: Date.now(), nomi, filename, prompt, nsfw: nsfwFlag, date: new Date().toISOString(), thumb: null };
     entries.unshift(entry);
     if (currentImageData) imageDataMap[entry.id] = currentImageData;
     document.getElementById('promptInput').value = '';
     document.getElementById('imgNumber').value = '';
+    // Reset NSFW toggle
+    nsfwFlag = false;
+    document.getElementById('nsfwToggleRow').classList.remove('active');
     clearImage(null);
     save(); renderEntries(); updateTotalCount(); renderSidebar(); updateSubmitStatus();
     showToast(`Logged → ${filename}`, 'success');
@@ -662,6 +749,7 @@
           <div class="entry-meta">
             <span class="entry-nomi">${e.nomi}</span>
             <span class="entry-filename">${e.filename}</span>
+            ${e.nsfw ? '<span class="entry-nsfw-badge">NSFW</span>' : ''}
             <span class="entry-date">${dateStr}</span>
           </div>
           <div class="entry-prompt">${e.prompt}</div>
@@ -676,10 +764,10 @@
 
   function exportCSV() {
     if (!entries.length) { showToast('Nothing to export yet'); return; }
-    const rows = ['filename,nomi_name,prompt'];
+    const rows = ['filename,nomi_name,prompt,nsfw'];
     [...entries].reverse().forEach(e => {
       const p = e.prompt.includes(',') ? `"${e.prompt.replace(/"/g,'""')}"` : e.prompt;
-      rows.push(`${e.filename},${e.nomi},${p}`);
+      rows.push(`${e.filename},${e.nomi},${p},${e.nsfw ? 'true' : 'false'}`);
     });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(new Blob([rows.join('\n')],{type:'text/csv'}));
@@ -698,10 +786,28 @@
         if (f===-1||s===-1) continue;
         const filename = line.slice(0,f).trim();
         const nomi = line.slice(f+1,s).trim();
-        const prompt = line.slice(s+1).trim().replace(/^"|"$/g,'');
+        let rest = line.slice(s+1).trim();
+        let prompt = rest, nsfw = false;
+        if (rest.startsWith('"')) {
+          const cq = rest.indexOf('"', 1);
+          if (cq !== -1) {
+            prompt = rest.slice(1, cq);
+            const after = rest.slice(cq+1).trim();
+            if (after.startsWith(',')) nsfw = after.slice(1).trim().toLowerCase() === 'true';
+          }
+        } else {
+          const lc = rest.lastIndexOf(',');
+          if (lc !== -1) {
+            const maybeNsfw = rest.slice(lc+1).trim().toLowerCase();
+            if (maybeNsfw === 'true' || maybeNsfw === 'false') {
+              prompt = rest.slice(0, lc).trim();
+              nsfw = maybeNsfw === 'true';
+            }
+          }
+        }
         if (!nomis.includes(nomi)) nomis.push(nomi);
         if (entries.find(e => e.filename===filename)) continue;
-        entries.push({id:Date.now()+i,nomi,filename,prompt,date:new Date().toISOString(),thumb:null});
+        entries.push({id:Date.now()+i,nomi,filename,prompt,nsfw,date:new Date().toISOString(),thumb:null});
         added++;
       }
       save(); renderSidebar(); renderEntries(); updateTotalCount();
