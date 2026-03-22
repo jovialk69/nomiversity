@@ -529,7 +529,7 @@
     const savedStyle = params.get('style') || localStorage.getItem('nomi_gallery_style') || 'All';
 
     try {
-      const res = await fetch('prompts.csv');
+      const res = await fetch('https://pub-20c4e1e9ea4b4b82bd232b80e1b61bff.r2.dev/prompts.csv');
       if (!res.ok) throw new Error('CSV not found');
       const text = await res.text();
       allEntries = parseCSV(text);
@@ -681,7 +681,7 @@
     }
 
     gallery.innerHTML = filtered.map((e, i) => {
-      const src = `images/${e.filename}`;
+      const src = `https://pub-20c4e1e9ea4b4b82bd232b80e1b61bff.r2.dev/images/${e.filename}`;
       const nsfwCover = e.nsfw ? `
         <div class="nsfw-cover" id="nsfw-${i}" onclick="revealNsfw(${i}, event)">
           <span class="nsfw-label">NSFW</span>
