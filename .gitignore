@@ -1,2 +1,5 @@
 *.zip
 *.DS_Store
+images/.wrangler/*
+.DS_Store
+.gitignore
