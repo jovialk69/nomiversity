@@ -1,0 +1,863 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Nomi Logger</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600&family=Instrument+Sans:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0e0e0c;
+    --surface: #171715;
+    --surface2: #1f1f1c;
+    --surface3: #272724;
+    --border: rgba(255,255,255,0.07);
+    --border2: rgba(255,255,255,0.13);
+    --border3: rgba(255,255,255,0.22);
+    --text: #f0ece4;
+    --text2: #9c9890;
+    --text3: #54524e;
+    --accent: #d4a853;
+    --accent-dim: rgba(212,168,83,0.12);
+    --accent-border: rgba(212,168,83,0.35);
+    --success: #4caf7d;
+    --success-dim: rgba(76,175,125,0.12);
+    --success-border: rgba(76,175,125,0.35);
+    --error: #e05555;
+    --error-dim: rgba(220,85,85,0.12);
+    --error-border: rgba(220,85,85,0.35);
+    --info: #5b9fd4;
+    --info-dim: rgba(91,159,212,0.12);
+    --info-border: rgba(91,159,212,0.35);
+    --radius: 10px;
+    --radius-sm: 7px;
+  }
+
+  html { font-size: 16px; }
+
+  body {
+    font-family: 'Instrument Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    display: grid;
+    grid-template-columns: 280px 1fr;
+    grid-template-rows: auto 1fr;
+  }
+
+  /* ── Topbar ── */
+  .topbar {
+    grid-column: 1 / -1;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 24px;
+    border-bottom: 0.5px solid var(--border);
+    background: var(--surface);
+  }
+
+  .topbar-title {
+    font-family: 'Syne', sans-serif; font-size: 17px; font-weight: 600;
+    letter-spacing: -0.2px; color: var(--text);
+    display: flex; align-items: center; gap: 10px;
+  }
+
+  .topbar-title .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
+
+  .topbar-right { display: flex; align-items: center; gap: 16px; }
+  .topbar-meta { font-size: 12px; color: var(--text3); }
+  .topbar-meta span { color: var(--text2); font-weight: 500; }
+
+  /* Worker status indicator */
+  .worker-status {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 11px; color: var(--text3);
+  }
+
+  .worker-dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--text3); flex-shrink: 0;
+    transition: background 0.3s;
+  }
+
+  .worker-dot.online  { background: var(--success); }
+  .worker-dot.offline { background: var(--error); }
+  .worker-dot.loading { background: var(--accent); animation: pulse 1s infinite; }
+
+  @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.3; } }
+
+  /* ── Sidebar ── */
+  .sidebar {
+    background: var(--surface);
+    border-right: 0.5px solid var(--border);
+    padding: 20px 16px;
+    display: flex; flex-direction: column; gap: 20px;
+    overflow-y: auto;
+    height: calc(100vh - 49px);
+  }
+
+  .sidebar-label {
+    font-size: 10px; font-weight: 500;
+    text-transform: uppercase; letter-spacing: 0.1em;
+    color: var(--text3); margin-bottom: 8px;
+  }
+
+  .nomi-list { display: flex; flex-direction: column; gap: 4px; }
+
+  .nomi-chip {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 8px 12px; border-radius: var(--radius-sm);
+    border: 0.5px solid transparent; cursor: pointer; transition: all 0.15s;
+    font-size: 13px; color: var(--text2); background: transparent;
+    font-family: 'Instrument Sans', sans-serif; text-align: left; width: 100%;
+  }
+
+  .nomi-chip:hover { background: var(--surface2); color: var(--text); }
+  .nomi-chip.active { background: var(--accent-dim); border-color: var(--accent-border); color: var(--accent); }
+  .nomi-chip .count { font-size: 11px; color: var(--text3); background: var(--surface3); padding: 1px 7px; border-radius: 999px; }
+  .nomi-chip.active .count { background: var(--accent-dim); color: var(--accent); }
+
+  /* ── Recent entries in sidebar ── */
+  .recent-list { display: flex; flex-direction: column; gap: 6px; }
+
+  .recent-item {
+    padding: 8px 10px; border-radius: var(--radius-sm);
+    background: var(--surface2); border: 0.5px solid var(--border);
+    font-size: 11px; color: var(--text2); line-height: 1.5;
+    cursor: default;
+  }
+
+  .recent-item .recent-filename {
+    color: var(--accent); font-weight: 500; font-style: normal;
+    display: block; margin-bottom: 2px;
+  }
+
+  .recent-item .recent-prompt {
+    color: var(--text3);
+    display: -webkit-box; -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical; overflow: hidden;
+  }
+
+  /* ── Main ── */
+  .main { display: flex; flex-direction: column; height: calc(100vh - 49px); overflow: hidden; }
+
+  .log-form {
+    padding: 18px 24px;
+    border-bottom: 0.5px solid var(--border);
+    background: var(--surface);
+    display: flex; flex-direction: column; gap: 12px;
+    overflow-y: auto;
+  }
+
+  .form-row { display: flex; gap: 10px; align-items: flex-start; flex-wrap: wrap; }
+  .field { display: flex; flex-direction: column; gap: 5px; flex: 1; }
+
+  .field label {
+    font-size: 10px; font-weight: 500;
+    text-transform: uppercase; letter-spacing: 0.09em; color: var(--text3);
+  }
+
+  .field input, .field textarea, .field select {
+    padding: 9px 12px; font-size: 13px;
+    font-family: 'Instrument Sans', sans-serif;
+    background: var(--surface2); border: 0.5px solid var(--border2);
+    border-radius: var(--radius-sm); color: var(--text); outline: none;
+    transition: border-color 0.15s; resize: none;
+  }
+
+  .field input:focus, .field textarea:focus, .field select:focus { border-color: var(--border3); }
+  .field input::placeholder, .field textarea::placeholder { color: var(--text3); }
+  .field select option { background: var(--surface2); }
+
+  /* ── Image picker ── */
+  .picker-section-label {
+    font-size: 10px; font-weight: 500;
+    text-transform: uppercase; letter-spacing: 0.09em;
+    color: var(--text3); margin-bottom: 6px;
+  }
+
+  .image-picker-zone {
+    border: 0.5px dashed var(--border2); border-radius: var(--radius);
+    padding: 12px 14px; display: flex; gap: 14px; align-items: center;
+    cursor: pointer; transition: border-color 0.2s, background 0.2s;
+    background: transparent; position: relative;
+  }
+
+  .image-picker-zone:hover { border-color: var(--border3); background: var(--surface2); }
+  .image-picker-zone.has-image { border-style: solid; border-color: var(--accent-border); background: var(--accent-dim); }
+
+  .image-picker-zone input[type="file"] {
+    position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%;
+  }
+
+  .image-picker-zone.has-image input[type="file"] { pointer-events: none; }
+
+  .img-preview-box {
+    width: 64px; height: 64px; flex-shrink: 0; border-radius: var(--radius-sm);
+    background: var(--surface3); border: 0.5px solid var(--border2);
+    overflow: hidden; display: flex; align-items: center; justify-content: center; color: var(--text3);
+  }
+
+  .img-preview-box img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+  .img-pick-info { flex: 1; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+  .img-pick-primary { font-size: 13px; color: var(--text2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .img-pick-secondary { font-size: 11px; color: var(--text3); }
+
+  .clear-btn {
+    padding: 3px 9px; font-size: 11px; font-family: 'Instrument Sans', sans-serif;
+    background: transparent; border: 0.5px solid var(--border2);
+    border-radius: var(--radius-sm); color: var(--text3);
+    cursor: pointer; transition: all 0.15s; white-space: nowrap; flex-shrink: 0;
+    position: relative; z-index: 2;
+  }
+
+  .clear-btn:hover { color: var(--text2); border-color: var(--border3); }
+
+  /* ── Generated filename preview ── */
+  .filename-preview {
+    background: var(--surface2); border: 0.5px solid var(--border2);
+    border-radius: var(--radius-sm); padding: 9px 12px;
+    font-size: 12px; color: var(--text3); display: none;
+  }
+
+  .filename-preview.visible { display: block; }
+  .filename-preview strong { color: var(--accent); font-family: 'Courier New', monospace; font-weight: 500; }
+
+  /* ── NSFW toggle ── */
+  .nsfw-toggle-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 14px; border: 0.5px solid var(--border2); border-radius: var(--radius-sm);
+    background: var(--surface2); cursor: pointer; transition: border-color 0.15s; user-select: none;
+  }
+
+  .nsfw-toggle-row:hover { border-color: var(--border3); }
+  .nsfw-toggle-row.active { border-color: rgba(220,80,80,0.45); background: rgba(220,80,80,0.07); }
+
+  .nsfw-toggle-label { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text2); }
+  .nsfw-toggle-row.active .nsfw-toggle-label { color: #e07070; }
+  .nsfw-toggle-label svg { width: 14px; height: 14px; flex-shrink: 0; }
+
+  .nsfw-pill {
+    font-size: 10px; font-weight: 500; letter-spacing: 0.07em; text-transform: uppercase;
+    padding: 2px 8px; border-radius: 999px; border: 0.5px solid rgba(220,80,80,0.4);
+    color: rgba(220,80,80,0.8); background: rgba(220,80,80,0.08); display: none;
+  }
+
+  .nsfw-toggle-row.active .nsfw-pill { display: inline-block; }
+
+  .nsfw-switch {
+    width: 32px; height: 18px; border-radius: 999px;
+    background: var(--surface3); border: 0.5px solid var(--border2);
+    position: relative; flex-shrink: 0; transition: background 0.2s, border-color 0.2s;
+  }
+
+  .nsfw-toggle-row.active .nsfw-switch { background: rgba(220,80,80,0.7); border-color: rgba(220,80,80,0.5); }
+
+  .nsfw-switch::after {
+    content: ''; position: absolute; top: 2px; left: 2px;
+    width: 12px; height: 12px; border-radius: 50%;
+    background: var(--text3); transition: transform 0.2s, background 0.2s;
+  }
+
+  .nsfw-toggle-row.active .nsfw-switch::after { transform: translateX(14px); background: #fff; }
+
+  /* ── Submit row ── */
+  .submit-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+  .submit-status { font-size: 12px; color: var(--text3); font-style: italic; }
+
+  .submit-btn {
+    padding: 10px 26px; font-size: 13px; font-weight: 500; font-family: 'Syne', sans-serif;
+    background: var(--accent); border: none; border-radius: var(--radius-sm); color: #0e0e0c;
+    cursor: pointer; transition: opacity 0.15s; white-space: nowrap;
+    display: flex; align-items: center; gap: 8px;
+  }
+
+  .submit-btn:hover { opacity: 0.85; }
+  .submit-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .submit-btn .btn-spinner {
+    width: 13px; height: 13px; border-radius: 50%;
+    border: 2px solid rgba(0,0,0,0.25); border-top-color: #0e0e0c;
+    animation: spin 0.6s linear infinite; display: none;
+  }
+
+  .submit-btn.uploading .btn-spinner { display: block; }
+  .submit-btn.uploading .btn-label { opacity: 0.6; }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── Upload result box ── */
+  .upload-result {
+    border-radius: var(--radius-sm); padding: 11px 14px;
+    font-size: 12px; line-height: 1.55; display: none;
+  }
+
+  .upload-result.visible { display: block; }
+  .upload-result.success { background: var(--success-dim); border: 0.5px solid var(--success-border); color: var(--success); }
+  .upload-result.error   { background: var(--error-dim);   border: 0.5px solid var(--error-border);   color: var(--error); }
+
+  /* ── Recent log panel ── */
+  .log-header {
+    padding: 12px 24px 10px;
+    display: flex; align-items: center; justify-content: space-between;
+    border-bottom: 0.5px solid var(--border); flex-shrink: 0;
+  }
+
+  .log-header-title { font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.09em; color: var(--text3); }
+
+  .entries-list { flex: 1; overflow-y: auto; padding: 12px 24px; display: flex; flex-direction: column; gap: 8px; }
+
+  .entry-card {
+    background: var(--surface); border: 0.5px solid var(--border);
+    border-radius: var(--radius); padding: 12px 14px;
+    display: flex; align-items: flex-start; gap: 12px;
+    transition: border-color 0.15s; animation: fadeIn 0.2s ease;
+  }
+
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+
+  .entry-card:hover { border-color: var(--border2); }
+  .entry-card.new-flash { border-color: var(--accent-border); background: var(--accent-dim); }
+
+  .entry-thumb {
+    width: 52px; height: 52px; flex-shrink: 0; border-radius: var(--radius-sm);
+    background: var(--surface2); border: 0.5px solid var(--border);
+    overflow: hidden; display: flex; align-items: center; justify-content: center; color: var(--text3);
+  }
+
+  .entry-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .entry-body { flex: 1; min-width: 0; }
+
+  .entry-meta { display: flex; align-items: center; gap: 8px; margin-bottom: 5px; flex-wrap: wrap; }
+  .entry-nomi { font-size: 11px; font-weight: 500; color: var(--accent); background: var(--accent-dim); padding: 2px 8px; border-radius: 999px; border: 0.5px solid var(--accent-border); }
+  .entry-filename { font-size: 11px; color: var(--text3); font-style: italic; }
+
+  .entry-style-badge {
+    font-size: 10px; font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase;
+    padding: 2px 7px; border-radius: 999px; border: 0.5px solid var(--border2);
+    color: var(--text2); background: var(--surface3); flex-shrink: 0;
+  }
+
+  .entry-nsfw-badge {
+    font-size: 10px; font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase;
+    padding: 2px 7px; border-radius: 999px; border: 0.5px solid rgba(220,80,80,0.4);
+    color: rgba(220,80,80,0.85); background: rgba(220,80,80,0.08); flex-shrink: 0;
+  }
+
+  .entry-prompt { font-size: 13px; color: var(--text2); line-height: 1.55; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+
+  .empty-log { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--text3); font-size: 13px; gap: 6px; padding: 2rem; text-align: center; }
+  .empty-log svg { width: 32px; height: 32px; margin-bottom: 4px; }
+
+  .toast { position: fixed; bottom: 20px; right: 20px; background: var(--surface3); border: 0.5px solid var(--border2); color: var(--text); font-size: 13px; padding: 10px 18px; border-radius: 999px; opacity: 0; transform: translateY(8px); transition: all 0.25s ease; pointer-events: none; z-index: 999; }
+  .toast.show { opacity: 1; transform: none; }
+  .toast.success { border-color: var(--success-border); color: var(--success); }
+  .toast.error   { border-color: var(--error-border);   color: var(--error); }
+
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--surface3); border-radius: 4px; }
+
+  /* ── Mobile ── */
+  @media (max-width: 680px) {
+    body {
+      grid-template-columns: 1fr;
+      grid-template-rows: auto auto 1fr;
+    }
+
+    .topbar { padding: 12px 16px; }
+
+    .sidebar {
+      height: auto;
+      border-right: none;
+      border-bottom: 0.5px solid var(--border);
+      padding: 14px 16px;
+      display: flex; flex-direction: column; gap: 12px;
+      overflow: visible;
+    }
+
+    /* Collapse nomi list into a horizontal scroll row */
+    .nomi-list {
+      display: flex; flex-direction: row;
+      flex-wrap: nowrap; overflow-x: auto;
+      gap: 6px; padding-bottom: 4px;
+    }
+
+    .nomi-chip {
+      white-space: nowrap; flex-shrink: 0;
+      padding: 6px 12px; width: auto;
+    }
+
+    /* Hide recently logged on mobile — entry list is visible below */
+    .sidebar > div:last-child { display: none; }
+
+    .add-nomi-row input { font-size: 16px; } /* prevent iOS zoom */
+
+    .main {
+      height: auto;
+      overflow: visible;
+    }
+
+    .log-form {
+      padding: 14px 16px;
+      overflow: visible;
+    }
+
+    .form-row { flex-wrap: wrap; }
+
+    .field { min-width: 140px; }
+
+    .entries-list {
+      overflow-y: visible;
+      padding: 12px 16px;
+      height: auto;
+    }
+
+    .log-header { padding: 10px 16px 8px; }
+  }
+
+  /* ── Config banner ── */
+  .config-banner {
+    background: var(--info-dim); border: 0.5px solid var(--info-border);
+    border-radius: var(--radius-sm); padding: 10px 14px;
+    font-size: 12px; color: var(--info); line-height: 1.55;
+    margin-bottom: 2px;
+  }
+
+  .config-banner code {
+    font-family: 'Courier New', monospace; background: rgba(91,159,212,0.15);
+    padding: 1px 5px; border-radius: 3px; font-size: 11px;
+  }
+
+  /* ── Add Nomi row ── */
+  .add-nomi-row { display: flex; gap: 6px; }
+
+  .add-nomi-row input {
+    flex: 1; padding: 7px 10px; font-size: 13px;
+    font-family: 'Instrument Sans', sans-serif;
+    background: var(--surface2); border: 0.5px solid var(--border2);
+    border-radius: var(--radius-sm); color: var(--text); outline: none;
+    transition: border-color 0.15s;
+  }
+
+  .add-nomi-row input:focus { border-color: var(--border3); }
+  .add-nomi-row input::placeholder { color: var(--text3); }
+
+  .icon-btn {
+    padding: 7px 11px; font-size: 16px; line-height: 1;
+    background: var(--surface2); border: 0.5px solid var(--border2);
+    border-radius: var(--radius-sm); color: var(--text2);
+    cursor: pointer; transition: all 0.15s; font-family: inherit;
+  }
+
+  .icon-btn:hover { background: var(--surface3); color: var(--text); }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-title"><div class="dot"></div>Nomi Logger</div>
+  <div class="topbar-right">
+    <div class="worker-status">
+      <div class="worker-dot loading" id="workerDot"></div>
+      <span id="workerStatusText">Connecting…</span>
+    </div>
+    <div class="topbar-meta"><span id="totalCount">0</span> entries</div>
+  </div>
+</div>
+
+<div class="sidebar">
+  <div>
+    <div class="sidebar-label">Your Nomis</div>
+    <div class="nomi-list" id="nomiList">
+      <div style="font-size:12px;color:var(--text3);padding:8px 4px;">Loading…</div>
+    </div>
+  </div>
+  <div>
+    <div class="sidebar-label">Add Nomi</div>
+    <div class="add-nomi-row">
+      <input type="text" id="newNomiInput" placeholder="Nomi name…" maxlength="40">
+      <button class="icon-btn" onclick="addNomi()">+</button>
+    </div>
+  </div>
+  <div>
+    <div class="sidebar-label">Recently logged</div>
+    <div class="recent-list" id="recentList">
+      <div style="font-size:12px;color:var(--text3);padding:4px;">—</div>
+    </div>
+  </div>
+</div>
+
+<div class="main">
+  <div class="log-form">
+
+    <div id="configBanner" class="config-banner" style="display:none;">
+      ⚠ Worker URL not configured. Open this file and set <code>WORKER_URL</code> at the top of the script.
+    </div>
+
+    <div class="form-row">
+      <div class="field" style="max-width:180px;">
+        <label>Nomi</label>
+        <select id="nomiSelect" onchange="onFormChange()">
+          <option value="">— select —</option>
+        </select>
+      </div>
+      <div class="field" style="max-width:130px;">
+        <label>Image # (optional)</label>
+        <input type="number" id="imgNumber" placeholder="auto" min="1" oninput="onFormChange()">
+      </div>
+      <div class="field" style="max-width:130px;">
+        <label>Style</label>
+        <select id="styleSelect">
+          <option value="">— select —</option>
+          <option value="Realistic">Realistic</option>
+          <option value="Anime">Anime</option>
+          <option value="Mix">Mix</option>
+        </select>
+      </div>
+    </div>
+
+    <div>
+      <div class="picker-section-label">Image</div>
+      <div class="image-picker-zone" id="pickerZone">
+        <input type="file" id="imgFile" accept="image/*" onchange="handleImagePick(event)">
+        <div class="img-preview-box" id="imgPreviewBox">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+        </div>
+        <div class="img-pick-info">
+          <div class="img-pick-primary" id="imgPickPrimary">Click to select an image</div>
+          <div class="img-pick-secondary" id="imgPickSecondary">JPG · PNG · WEBP supported</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="filename-preview" id="filenamePreview">
+      Will be saved as: <strong id="previewFilename"></strong>
+    </div>
+
+    <div class="field">
+      <label>Image prompt</label>
+      <textarea id="promptInput" rows="3" placeholder="Paste the image prompt from Nomi.ai here…"></textarea>
+    </div>
+
+    <div onclick="toggleNsfw()" id="nsfwToggleRow" class="nsfw-toggle-row">
+      <div class="nsfw-toggle-label">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+          <path d="M1 8s3-5 7-5 7 5 7 5-3 5-7 5-7-5-7-5z"/>
+          <circle cx="8" cy="8" r="2"/>
+        </svg>
+        Mark as NSFW
+        <span class="nsfw-pill">NSFW</span>
+      </div>
+      <div class="nsfw-switch"></div>
+    </div>
+
+    <div class="upload-result" id="uploadResult"></div>
+
+    <div class="submit-row">
+      <div class="submit-status" id="submitStatus"></div>
+      <button class="submit-btn" id="submitBtn" onclick="logEntry()">
+        <div class="btn-spinner"></div>
+        <span class="btn-label">Upload &amp; log →</span>
+      </button>
+    </div>
+
+  </div>
+
+  <div class="log-header">
+    <div class="log-header-title" id="logHeaderTitle">Recent entries</div>
+  </div>
+
+  <div class="entries-list" id="entriesList">
+    <div class="empty-log">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="8" x2="16" y2="8"/><line x1="8" y1="16" x2="12" y2="16"/></svg>
+      Loading entries…
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  // ── CONFIGURATION ─────────────────────────────────────
+  const WORKER_URL = 'https://nomi-archive-worker.jovialk69.workers.dev';
+  const R2_URL = 'https://pub-20c4e1e9ea4b4b82bd232b80e1b61bff.r2.dev';
+  // ──────────────────────────────────────────────────────
+
+  let nomis = [];
+  let entries = [];
+  let currentImageFile = null;
+  let currentImageData = null;
+  let nsfwFlag = false;
+
+  // ── Init ──────────────────────────────────────────────
+  async function init() {
+    if (!WORKER_URL) {
+      document.getElementById('configBanner').style.display = 'block';
+      setWorkerStatus('offline', 'Not configured');
+      renderEntries([]);
+      return;
+    }
+    await loadEntries();  // entries must load first so sidebar counts are correct
+    await loadNomis();
+  }
+
+  async function loadNomis() {
+    try {
+      const res = await fetch(`${WORKER_URL}/nomis`);
+      const data = await res.json();
+      nomis = data.nomis || [];
+      renderSidebar();
+      updateNomiSelect();
+      setWorkerStatus('online', 'Connected');
+    } catch (err) {
+      setWorkerStatus('offline', 'Offline');
+      showToast('Could not reach Worker', 'error');
+    }
+  }
+
+  async function loadEntries() {
+    try {
+      const res = await fetch(`${WORKER_URL}/entries`);
+      const data = await res.json();
+      entries = (data.entries || []).reverse(); // newest first
+      renderEntries(entries.slice(0, 20));
+      document.getElementById('totalCount').textContent = entries.length;
+      document.getElementById('logHeaderTitle').textContent = `Recent entries · ${entries.length} total`;
+    } catch (err) {
+      renderEntries([]);
+    }
+  }
+
+  // ── Worker status ─────────────────────────────────────
+  function setWorkerStatus(state, text) {
+    const dot = document.getElementById('workerDot');
+    dot.className = `worker-dot ${state}`;
+    document.getElementById('workerStatusText').textContent = text;
+  }
+
+  // ── Nomi select ───────────────────────────────────────
+  function updateNomiSelect() {
+    const sel = document.getElementById('nomiSelect');
+    const prev = sel.value;
+    sel.innerHTML = '<option value="">— select Nomi —</option>' +
+      nomis.map(n => `<option value="${n}"${n === prev ? ' selected' : ''}>${n}</option>`).join('');
+  }
+
+  function renderSidebar() {
+    const list = document.getElementById('nomiList');
+    if (!nomis.length) {
+      list.innerHTML = `<div style="font-size:12px;color:var(--text3);padding:4px;">No Nomis yet</div>`;
+      return;
+    }
+    list.innerHTML = nomis.map(n => {
+      const count = entries.filter(e => e.nomi === n).length;
+      return `<button class="nomi-chip" onclick="filterNomi('${n.replace(/'/g,"\\'")}')">
+        ${n} <span class="count">${count}</span>
+      </button>`;
+    }).join('');
+  }
+
+  function filterNomi(name) {
+    const filtered = entries.filter(e => e.nomi === name);
+    renderEntries(filtered.slice(0, 20));
+    document.getElementById('logHeaderTitle').textContent = `${name} · ${filtered.length} entries`;
+  }
+
+  function addNomi() {
+    const input = document.getElementById('newNomiInput');
+    const name = input.value.trim();
+    if (!name) return;
+    if (nomis.find(n => n.toLowerCase() === name.toLowerCase())) {
+      showToast('Nomi already exists', 'error'); return;
+    }
+    nomis.push(name);
+    input.value = '';
+    renderSidebar();
+    updateNomiSelect();
+    showToast(`Added "${name}"`, 'success');
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    const input = document.getElementById('newNomiInput');
+    if (input) input.addEventListener('keydown', e => { if (e.key === 'Enter') addNomi(); });
+  });
+
+  // ── Form helpers ──────────────────────────────────────
+  function slugify(n) { return n.toLowerCase().replace(/\s+/g,'_').replace(/[^a-z0-9_]/g,''); }
+  function getExt(fname) { const p = fname.split('.'); return p.length > 1 ? p[p.length-1].toLowerCase() : 'jpg'; }
+
+  function getNextNumber(nomiName) {
+    const slug = slugify(nomiName);
+    const existing = entries.filter(e => e.nomi === nomiName);
+    if (!existing.length) return 1;
+    const nums = existing.map(e => { const m = e.filename.match(/_(\d+)\./); return m ? parseInt(m[1]) : 0; });
+    return Math.max(...nums) + 1;
+  }
+
+  function buildFilename(nomiName, num, ext) {
+    return `${slugify(nomiName)}_${String(num).padStart(3,'0')}.${ext}`;
+  }
+
+  function onFormChange() {
+    const nomi = document.getElementById('nomiSelect').value;
+    const numInput = document.getElementById('imgNumber').value;
+    const preview = document.getElementById('filenamePreview');
+    if (!nomi || !currentImageFile) { preview.classList.remove('visible'); return; }
+    const num = numInput ? parseInt(numInput) : getNextNumber(nomi);
+    const ext = getExt(currentImageFile.name);
+    const filename = buildFilename(nomi, num, ext);
+    document.getElementById('previewFilename').textContent = filename;
+    preview.classList.add('visible');
+  }
+
+  function handleImagePick(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    currentImageFile = file;
+    const reader = new FileReader();
+    reader.onload = ev => {
+      currentImageData = ev.target.result;
+      document.getElementById('imgPreviewBox').innerHTML = `<img src="${currentImageData}" alt="">`;
+      document.getElementById('pickerZone').classList.add('has-image');
+      document.getElementById('imgPickPrimary').textContent = file.name;
+      document.getElementById('imgPickSecondary').innerHTML =
+        `<button class="clear-btn" onclick="clearImage(event)">✕ Clear</button>`;
+      onFormChange();
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function clearImage(e) {
+    if (e) e.stopPropagation();
+    currentImageFile = null; currentImageData = null;
+    document.getElementById('imgPreviewBox').innerHTML =
+      `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>`;
+    document.getElementById('pickerZone').classList.remove('has-image');
+    document.getElementById('imgPickPrimary').textContent = 'Click to select an image';
+    document.getElementById('imgPickSecondary').textContent = 'JPG · PNG · WEBP supported';
+    document.getElementById('imgFile').value = '';
+    document.getElementById('filenamePreview').classList.remove('visible');
+  }
+
+  function toggleNsfw() {
+    nsfwFlag = !nsfwFlag;
+    document.getElementById('nsfwToggleRow').classList.toggle('active', nsfwFlag);
+  }
+
+  // ── Upload & log ──────────────────────────────────────
+  async function logEntry() {
+    const nomi   = document.getElementById('nomiSelect').value;
+    const prompt = document.getElementById('promptInput').value.trim();
+    const style  = document.getElementById('styleSelect').value;
+    const imgNum = document.getElementById('imgNumber').value;
+
+    if (!nomi)            { showToast('Please select a Nomi', 'error'); return; }
+    if (!prompt)          { showToast('Please enter a prompt', 'error'); return; }
+    if (!currentImageFile){ showToast('Please select an image', 'error'); return; }
+
+    const btn = document.getElementById('submitBtn');
+    const resultBox = document.getElementById('uploadResult');
+    btn.classList.add('uploading');
+    btn.disabled = true;
+    resultBox.className = 'upload-result';
+    resultBox.style.display = 'none';
+
+    try {
+      const formData = new FormData();
+      formData.append('image', currentImageFile);
+      formData.append('nomi', nomi);
+      formData.append('prompt', prompt);
+      formData.append('nsfw', nsfwFlag ? 'true' : 'false');
+      formData.append('style', style);
+      if (imgNum) formData.append('imgNumber', imgNum);
+
+      const res = await fetch(`${WORKER_URL}/upload`, {
+        method: 'POST',
+        body: formData,
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || data.error) {
+        throw new Error(data.error || 'Upload failed');
+      }
+
+      // Success
+      resultBox.textContent = `✓ Saved as ${data.filename}`;
+      resultBox.className = 'upload-result success visible';
+
+      // Reset form
+      document.getElementById('promptInput').value = '';
+      document.getElementById('imgNumber').value = '';
+      document.getElementById('styleSelect').value = '';
+      nsfwFlag = false;
+      document.getElementById('nsfwToggleRow').classList.remove('active');
+      clearImage(null);
+
+      // Refresh entries and nomis from server
+      await loadEntries();
+      await loadNomis();
+      showToast(`Logged → ${data.filename}`, 'success');
+
+      // Flash first entry
+      setTimeout(() => {
+        const first = document.querySelector('.entry-card');
+        if (first) { first.classList.add('new-flash'); setTimeout(() => first.classList.remove('new-flash'), 1200); }
+      }, 50);
+
+    } catch (err) {
+      resultBox.textContent = `✗ ${err.message}`;
+      resultBox.className = 'upload-result error visible';
+      showToast('Upload failed', 'error');
+    } finally {
+      btn.classList.remove('uploading');
+      btn.disabled = false;
+    }
+  }
+
+  // ── Render entries ────────────────────────────────────
+  function renderEntries(list) {
+    const el = document.getElementById('entriesList');
+    if (!list.length) {
+      el.innerHTML = `<div class="empty-log">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="8" x2="16" y2="8"/><line x1="8" y1="16" x2="12" y2="16"/></svg>
+        No entries yet.
+      </div>`;
+      return;
+    }
+    el.innerHTML = list.map(e => `
+      <div class="entry-card">
+        <div class="entry-thumb">
+          <img src="${getR2ImageUrl(e.filename)}" alt="" onerror="this.style.display='none'">
+        </div>
+        <div class="entry-body">
+          <div class="entry-meta">
+            <span class="entry-nomi">${e.nomi}</span>
+            <span class="entry-filename">${e.filename}</span>
+            ${e.style ? `<span class="entry-style-badge">${e.style}</span>` : ''}
+            ${e.nsfw  ? `<span class="entry-nsfw-badge">NSFW</span>` : ''}
+          </div>
+          <div class="entry-prompt">${e.prompt}</div>
+        </div>
+      </div>`).join('');
+  }
+
+  function getR2ImageUrl(filename) {
+    return `${R2_URL}/images/${filename}`;
+  }
+
+  // ── Toast ─────────────────────────────────────────────
+  function showToast(msg, type = '') {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className = 'toast show' + (type ? ' ' + type : '');
+    clearTimeout(t._t);
+    t._t = setTimeout(() => t.classList.remove('show'), 2400);
+  }
+
+  init();
+</script>
+</body>
+</html>
